@@ -1,214 +1,226 @@
 #include "ScalarConverter.hpp"
 
-
-//Constructors
-
-ScalarConverter::ScalarConverter()
+ScalarConverter::ScalarConverter() 
 {
-    std::cout << "Default ScalarConverter constructor called!" << std::endl;
+
 }
 
-ScalarConverter::ScalarConverter(const std::string input) : _input(input)
+ScalarConverter::ScalarConverter(const ScalarConverter& other)
 {
-    std::cout << "ScalarConverter constructor called!" << std::endl;
-}
-
-ScalarConverter::~ScalarConverter()
-{
-    std::cout << "ScalarConverter destructor called!" << std::endl;
-}
-
-ScalarConverter::ScalarConverter(const ScalarConverter& other) : _input(other.getInput())
-{
-    std::cout << "Copy ScalarConverter constructor called!" << std::endl;
     *this = other;
-    printOutput();
 }
 
-ScalarConverter& ScalarConverter::operator=(const ScalarConverter &other)
+ScalarConverter& ScalarConverter::operator=(const ScalarConverter& other)
 {
-    if(this != &other)
+    if (this != &other) 
     {
-        this->_type = other.getType();
-        this->_char = other.getChar();
-        this->_int = other.getInt();
-        this->_float = other.getFloat();
-        this->_double = other.getDouble();   
+
     }
     return *this;
 }
 
-//Functions
-void    ScalarConverter::convert(std::string input)
+ScalarConverter::~ScalarConverter() 
 {
-    setInput(input);
-    _double = atof(getInput().c_str());
-    convertInput();
-    printOutput();
+
 }
 
-void    ScalarConverter::setInput(std::string& input)
+static bool hasDot(const std::string& input)
 {
-    _input = input;
-}
-
-void    ScalarConverter::fromChar()
-{
-    _char = static_cast<unsigned char>(getInput()[0]);
-    _int = static_cast<int>(getChar());
-    _float = static_cast<float>(getChar());
-    _double = static_cast<double>(getChar());
-}
-
-void    ScalarConverter::fromInt()
-{  
-    _int = static_cast<int>(getDouble());
-    _char = static_cast<char>(getInt());
-    _float = static_cast<float>(getDouble());
-}
-
-void    ScalarConverter::fromFloat()
-{
-    _float = static_cast<float>(getDouble());
-    _char = static_cast<char>(getFloat());
-    _int = static_cast<int>(getFloat());
-}
-
-void    ScalarConverter::fromDouble()
-{
-    _char = static_cast<char>(getDouble());
-    _int = static_cast<int>(getDouble());
-    _float = static_cast<float>(getDouble());
-}
-
-int ScalarConverter::checkInput()
-{
-    if (getInput().compare("nan") == 0 || getInput().compare("+inf") == 0 || getInput().compare("-inf") == 0 || getInput().compare("+inff") == 0 || getInput().compare("-inff") == 0)
-        return NAN_INF;
-    else if (getInput().length() == 1 && (getInput()[0] == '+' || getInput()[0] == '-' || getInput()[0] == 'f' || getInput()[0] == '.'))
-        return (CHAR);
-    else if (getInput().find_first_of("+-") != getInput().find_last_of("+-"))
-        return (ERROR);
-    else if (getInput().find_first_not_of("+-0123456789") == std::string::npos)
-        return (INT);
-    else if (getInput().find_first_not_of("+-0123456789.") == std::string::npos)
+    if (input.find('.') != std::string::npos)
     {
-        if (getInput().find_first_of(".") != getInput().find_last_of(".") || isdigit(getInput()[getInput().find_first_of(".") + 1]) == false || getInput().find_first_of(".") == 0)
-            return (ERROR);
-        else
-            return (DOUBLE);
+        if (input.find_first_of('.') == input.find_last_of('.'))
+            return (1);
+        return 0;
     }
-    else if (getInput().find_first_not_of("+-0123456789.f") == std::string::npos)
+    return 0;
+}
+
+static bool hasFloatSign(std::string& input)
+{
+    if (input.find('f') != std::string::npos)
     {
-        if (getInput().find_first_of(".") != getInput().find_last_of(".") || getInput().find_first_of("f") != getInput().find_last_of("f") || getInput().find_first_of("f") - getInput().find_first_of(".") == 1 || getInput().find_first_of(".") == 0 || getInput()[getInput().find_first_of("f") + 1] != '\0')
-            return (ERROR);
-        else
-            return (FLOAT);
+        if (input.find_first_of('f') != input.find_last_of('f'))
+            return 0;
+        if (input[0] == '+' || input[0] == '-')
+            input = input.substr(1);
+        if (input.find_first_not_of("0123456789.f") == std::string::npos)
+            return 1;
     }
-    else if (getInput().length() == 1 && (std::isprint(getInput()[0]) || getInput().length() == 1) && std::isalpha(getInput()[0]))
-        return (CHAR);
-    else
-        return (ERROR);
+    return 0;
 }
 
-void    ScalarConverter::convertInput()
+static bool validDouble(std::string& input)
 {
-    _type = checkInput();
-    if (getType() == NAN_INF)
-        return ;
-    if (getType() == CHAR)
-        fromChar();
-    else if (getType() == INT)
-        fromInt();
-    else if (getType() == FLOAT)
-        fromFloat();
-    else if (getType() == DOUBLE)
-        fromDouble();
-    else
-        throw ErrorException();
+    if (input.find_first_of('.') != input.find_last_of('.'))
+        return 0;
+    if (input[0] == '+' || input[0] == '-')
+        input = input.substr(1);
+    if (input.find_first_not_of("0123456789.") == std::string::npos)
+        return 1;
+    return 0;
 }
 
-void    ScalarConverter::printOutput() const
+static bool isSpecialCase(const std::string& input)
 {
-    if (getType() != NAN_INF && getDouble() <= UCHAR_MAX && this->getDouble() >= 0)
+    if (input == "nan" || input == "nanf" || input == "+inf" || input == "+inff" || input == "-inf" || input == "-inff")
+        return true;
+    return false;
+}
+
+static bool isChar(const std::string& input)
+{
+    size_t  input_length = input.length();
+
+    if (input_length == 1 && !isdigit(input[0]))
+        return true;
+    else if (input_length == 3 && input[0] == '\'' && input[2] == '\'')
+        return true;
+    return false;
+}
+
+static bool isInt(std::string& input)
+{
+    if (input[0] == '+' || input[0] == '-')
+        input = input.substr(1);
+    if (input.find_first_not_of("0123456789") == std::string::npos)
+        return 1;
+    return 0;
+}
+
+e_type ScalarConverter::typeIdentifier(std::string& input)
+{
+    if (hasDot(input))
     {
-        if (isprint(getChar()))
-            std::cout << "char: '" << getChar() << "'" << std::endl;
-        else
-            std::cout << "char: Non displayable" << std::endl;
+        if (hasFloatSign(input))
+            return FLOAT;
+        if (validDouble(input))
+            return DOUBLE;
     }
     else
-        std::cout <<"char: impossible" << std::endl;
+    {
+        if (isSpecialCase(input))
+            return PSEUDO;
+        if (isChar(input))
+            return CHAR;
+        if (isInt(input))
+            return INT;
+    }
+    return INVALID;
+}
 
-    if (getType() != NAN_INF && getDouble() >= std::numeric_limits<int>::min() && getDouble() <= std::numeric_limits<int>::max())
-        std::cout <<  "int: " << getInt() << std::endl;
-    else
+void    ConvertFromPseudo(const std::string& input)
+{
+    if (input == "-inf" || input == "-inff")
+    {
+        std::cout << "char: impossible" << std::endl;
         std::cout << "int: impossible" << std::endl;
-
-    if (getType() != NAN_INF)
+        std::cout << "float: -inff" << std::endl;
+        std::cout << "double: -inf" << std::endl;
+    }
+    else if (input == "+inf" || input == "+inff")
     {
-        std::cout << "float: " << getFloat();
-        if (getFloat() - getInt() == 0)
-            std::cout << ".0f" << std::endl;
-        else
-            std::cout << "f" << std::endl;
+        std::cout << "char: impossible" << std::endl;
+        std::cout << "int: impossible" << std::endl;
+        std::cout << "float: +inff" << std::endl;
+        std::cout << "double: +inf" << std::endl;
+    }
+    else if (input == "nan" || input == "nanf")
+    {
+        std::cout << "char: impossible" << std::endl;
+        std::cout << "int: impossible" << std::endl;
+        std::cout << "float: nanf" << std::endl;
+        std::cout << "double: nan" << std::endl;
+    }
+}
+
+template<typename T>
+bool    isPrintable(T value)
+{
+    if (!isprint(value))
+        std::cout << "char: Non displayable" << std::endl;
+    else
+        return (false);
+    return (true);
+}
+
+void    ConvertFromChar(const std::string& input)
+{
+    char    character;
+
+    if (input.length() == 1)
+        character = input[0];
+    else
+        character = input[1];
+
+    if (!isPrintable(character))
+        std::cout << "char: " << character << std::endl;
+
+    std::cout << "int: " << static_cast<int>(character) << std::endl;
+    std::cout << "float: " << static_cast<float>(character) << ".0f" << std::endl;
+    std::cout << "double: " << static_cast<double>(character) << ".0" << std::endl;
+}
+
+void    ConvertFromInt(const std::string& input)
+{
+    int value_integer = std::atoi(input.c_str());
+
+    if (value_integer < 0 || value_integer > 127)
+        std::cout << "char: impossible" << std::endl;
+    else
+        if (!isPrintable(value_integer))
+            std::cout << "char: '" << static_cast<char>(value_integer) << "'" << std::endl;
+
+    std::cout << "int: " << value_integer << std::endl;
+    std::cout << "float: " << static_cast<float>(value_integer) << ".0f" << std::endl;
+    std::cout << "double: " << static_cast<double>(value_integer) << ".0" << std::endl;
+}
+
+bool    hasFractional(double value)
+{
+    return std::floor(value) != value;
+}
+
+void    ConvertFromFloatOrDouble(const std::string& input)
+{
+    float value_float = std::atof(input.c_str());
+
+    if (value_float < 0 || value_float > 127)
+        std::cout << "char: impossible" << std::endl;
+    else
+        if (!isPrintable(value_float))
+            std::cout << "char: '" << static_cast<char>(value_float) << "'" << std::endl;
+
+    if (value_float < std::numeric_limits<int>::min() || value_float > std::numeric_limits<int>::max())
+        std::cout << "int: impossible" << std::endl;
+    else
+        std::cout << "int: " << static_cast<int>(value_float) << std::endl;
+
+    if (hasFractional(value_float))
+    {
+        std::cout << "float: " << value_float << "f" << std::endl;
+        std::cout << "double: " << static_cast<double>(value_float) << std::endl;
     }
     else
     {
-        if (getInput() == "nan" || getInput() == "nanf")
-            std::cout << "float: nanf" << std::endl;
-        else if (getInput()[0] == '+')
-            std::cout << "float: +inff" << std::endl;
-        else
-            std::cout << "float: -inff" << std::endl;
-    }
-
-    if(getType() != NAN_INF)
-    {
-        std::cout << "double: " << getDouble();
-        if (getDouble() < std::numeric_limits<int>::min() || getDouble() > std::numeric_limits<int>::max() || getDouble() - getInt() == 0)
-            std::cout << ".0" << std::endl;
-        else
-            std::cout << std::endl;
-    }      
-    else
-    {   if (getInput() == "nan" || getInput() == "nanf")
-            std::cout << "double: nan" <<std::endl;
-        else if (getInput()[0] == '+')
-            std::cout << "double: +inf" << std::endl;
-        else
-            std::cout << "double: -inf" << std::endl;
+        std::cout << "float: " << value_float << ".0f" << std::endl;
+        std::cout << "double: " << static_cast<double>(value_float) << ".0" << std::endl;
     }
 }
 
-
-//Getters
-std::string     ScalarConverter::getInput() const
+void    ScalarConverter::convert(std::string& input)
 {
-    return _input;
-}
+    e_type  type;
 
-int ScalarConverter::getType() const
-{
-    return _type;
-}
+    type = typeIdentifier(input);
 
-char    ScalarConverter::getChar() const
-{
-    return _char;
-}
-
-int     ScalarConverter::getInt () const
-{
-    return _int;
-}
-
-float   ScalarConverter::getFloat() const
-{
-    return _float;
-}
-
-double  ScalarConverter::getDouble() const
-{
-    return _double;
+    if (type == PSEUDO)
+        ConvertFromPseudo(input);
+    else if (type == CHAR)
+        ConvertFromChar(input);
+    else if (type == INT)
+        ConvertFromInt(input);
+    else if (type == FLOAT || type == DOUBLE)
+        ConvertFromFloatOrDouble(input);
+    else if (type == INVALID)
+        std::cout << "Invalid Input Type" << std::endl;
 }

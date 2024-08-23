@@ -6,73 +6,33 @@
 #include <climits>
 #include <limits>
 #include <cstdlib>
+#include <locale>
+#include <cmath>
+#include <cstdio>
 
-#define NAN_INF 1
-#define ERROR 2
-#define CHAR 3
-#define INT 4
-#define FLOAT 5
-#define DOUBLE 6
+enum    e_type
+{
+    INVALID = -1,
+    PSEUDO = 0,
+    CHAR = 1,
+    INT = 2,
+    FLOAT = 3,
+    DOUBLE = 4
+};
 
-
-class ScalarConverter
+class   ScalarConverter
 {
     private:
-        std::string   _input;
-        int                 _type;
-        char                _char;
-        int                 _int;
-        float               _float;
-        double              _double;
-
-    protected:
-
-    public:
-        //Constructors
         ScalarConverter();
-        ScalarConverter(const std::string input);
-
-        //Copy Constructor
         ScalarConverter(const ScalarConverter& other);
-
-        //Destructor
+        ScalarConverter& operator = (const ScalarConverter& other);
         ~ScalarConverter();
 
-        //Copy assignment operator
-        ScalarConverter& operator=(const ScalarConverter& other);
+        static e_type typeIdentifier(std::string& input);
 
-        //Getters
-        std::string getInput() const;
-        int         getType() const;
-        char        getChar() const;
-        int         getInt() const;
-        float       getFloat() const;
-        double      getDouble() const;
+    public:
+        static void convert(std::string& input);
 
-        //Setters
-        void        setInput(std::string& input);
-
-        //Functions
-        void    fromChar();
-        void    fromInt();
-        void    fromFloat();
-        void    fromDouble();
-
-        static void    convert(const std::string input);
-        int     checkInput();
-        void    convertInput();
-        void    printOutput() const;
-
-
-        //Exceptions
-        class ErrorException : public std::exception
-        {
-            public:
-                const char *what() const throw()
-                {
-                    return ("Error: Not convertable");
-                }
-        };
 };
 
 #endif
